@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Multi-Map Offline System</title>
+    <style>
+        :root {
+            --primary: #10b981;
+            --primary-dark: #059669;
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background-color: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .subtitle {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .main-container {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            max-width: 1300px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 1rem;
+            gap: 1rem;
+        }
+
+        @media (min-width: 768px) {
+            .main-container {
+                flex-direction: row;
+            }
+        }
+
+        .map-section {
+            flex: 2;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .control-panel {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            background: var(--bg-card);
+            padding: 0.75rem;
+            border-radius: 0.50rem;
+            border: 1px solid var(--border);
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn:hover {
+            background-color: var(--primary-dark);
+        }
+
+        .btn-secondary {
+            background-color: #475569;
+        }
+        .btn-secondary:hover {
+            background-color: #334155;
+        }
+
+        .btn-danger {
+            background-color: var(--danger);
+        }
+        .btn-danger:hover {
+            background-color: #dc2626;
+        }
+
+        .size-control-group {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            background: var(--bg-dark);
+            padding: 0.3rem 0.5rem;
+            border-radius: 0.375rem;
+            border: 1px solid var(--border);
+        }
+
+        .size-control-group label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .size-step-btn {
+            background: #475569;
+            color: white;
+            border: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .size-step-btn:hover {
+            background: var(--primary);
+        }
+
+        .size-control-group input[type="range"] {
+            cursor: pointer;
+            accent-color: var(--primary);
+            width: 70px;
+        }
+
+        /* Map Viewer Frame */
+        .map-viewport {
+            position: relative;
+            width: 100%;
+            height: 450px;
+            background: #000;
+            border-radius: 0.5rem;
+            border: 1px solid var(--border);
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: none;
+        }
+
+        @media (min-width: 768px) {
+            .map-viewport {
+                height: 550px;
+            }
+        }
+
+        .map-canvas-container {
+            position: relative;
+            transform-origin: 0 0;
+            cursor: crosshair;
+        }
+
+        .map-image {
+            display: block;
+            max-width: 100%;
+            height: auto;
+            user-select: none;
+        }
+
+        /* Marker Pins on Map */
+        .map-pin {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            background: rgba(15, 23, 42, 0.9);
+            color: #fff;
+            border: 2px solid var(--primary);
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.15s, background 0.15s, border-color 0.15s, z-index 0.15s;
+            z-index: 10;
+        }
+
+        .map-pin.duplicate-flag {
+            border-color: var(--warning);
+            box-shadow: 0 0 8px var(--warning);
+        }
+
+        .map-pin:hover {
+            transform: translate(-50%, -50%) scale(1.3);
+            background: var(--primary-dark);
+            z-index: 30;
+        }
+
+        .map-pin.active {
+            background: #22c55e !important;
+            border-color: #ffffff !important;
+            color: #0f172a;
+            transform: translate(-50%, -50%) scale(1.4);
+            z-index: 40;
+            box-shadow: 0 0 12px #22c55e;
+        }
+
+        /* Info Banner */
+        .info-banner {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .info-title {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .info-value {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #22c55e;
+        }
+
+        /* Sidebar / Index Panel */
+        .sidebar {
+            flex: 1.2;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            display: flex;
+            flex-direction: column;
+            max-height: 620px;
+            overflow: hidden;
+        }
+
+        .sidebar-header {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+            font-weight: 600;
+            font-size: 0.95rem;
+            background: rgba(15, 23, 42, 0.4);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .search-sort-container {
+            padding: 0.5rem 0.75rem;
+            background: rgba(15, 23, 42, 0.2);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 0.45rem 0.75rem;
+            border-radius: 0.375rem;
+            border: 1px solid var(--border);
+            background: var(--bg-dark);
+            color: white;
+            font-size: 0.85rem;
+            outline: none;
+        }
+
+        .search-input:focus {
+            border-color: var(--primary);
+        }
+
+        .sort-select {
+            padding: 0.45rem 0.5rem;
+            border-radius: 0.375rem;
+            border: 1px solid var(--border);
+            background: var(--bg-dark);
+            color: white;
+            font-size: 0.8rem;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .town-list {
+            overflow-y: auto;
+            flex: 1;
+            padding: 0.5rem;
+        }
+
+        .town-item {
+            padding: 0.5rem 0.75rem;
+            margin-bottom: 0.35rem;
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid transparent;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        .town-item.duplicate-item {
+            border-left: 3px solid var(--warning);
+            background: rgba(245, 158, 11, 0.1);
+        }
+
+        .town-item:hover {
+            background: rgba(51, 65, 85, 0.5);
+            border-color: var(--border);
+        }
+
+        .town-item.active {
+            background: rgba(16, 185, 129, 0.15);
+            border-color: var(--primary);
+            color: #22c55e;
+        }
+
+        .town-actions {
+            display: flex;
+            gap: 0.25rem;
+        }
+
+        .action-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 0.2rem 0.4rem;
+            font-size: 0.8rem;
+            border-radius: 0.25rem;
+        }
+
+        .action-btn:hover {
+            background: var(--border);
+            color: white;
+        }
+
+        .action-btn.delete:hover {
+            background: var(--danger);
+            color: white;
+            z-index: 50;
+        }
+
+        /* Zoom controls */
+        .zoom-controls {
+            position: absolute;
+            bottom: 1rem;
+            right: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            z-index: 50;
+        }
+
+        .zoom-btn {
+            width: 36px;
+            height: 36px;
+            background: var(--bg-card);
+            color: white;
+            border: 1px solid var(--border);
+            border-radius: 50%;
+            font-size: 1.2rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
+        }
+
+        .zoom-btn:hover {
+            background: var(--border);
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        /* Update Notification Banner */
+        .update-banner {
+            display: none;
+            background: var(--warning);
+            color: #0f172a;
+            padding: 0.75rem 1rem;
+            text-align: center;
+            font-weight: bold;
+            font-size: 0.9rem;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .update-banner a {
+            background: #0f172a;
+            color: white;
+            padding: 0.3rem 0.7rem;
+            border-radius: 0.25rem;
+            text-decoration: none;
+            font-size: 0.8rem;
+        }
+
+        /* Modal styling */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background: var(--bg-card);
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            border: 1px solid var(--border);
+            width: 90%;
+            max-width: 400px;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .modal-content h3 {
+            color: var(--primary);
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+        }
+        .form-group label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+        .form-group input {
+            padding: 0.5rem;
+            border-radius: 0.3rem;
+            border: 1px solid var(--border);
+            background: var(--bg-dark);
+            color: white;
+        }
+        .warning-text {
+            color: var(--warning);
+            font-size: 0.8rem;
+            display: none;
+        }
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Update Alert Banner (Hidden by default) -->
+    <div class="update-banner" id="updateBanner">
+        <span>🚀 New version of the app is available!</span>
+        <a id="downloadUpdateBtn" href="#" target="_blank">Download Update</a>
+    </div>
+
+    <header>
+        <h1>Multi-Map Interactive Offline System</h1>
+        <div class="subtitle">100% Offline • Auto-Update Alert • Mobile Ready</div>
+    </header>
+
+    <div class="main-container">
+        <!-- Map Section -->
+        <div class="map-section">
+            <div class="control-panel">
+                <div>
+                    <label for="customMapUpload" class="btn btn-secondary" style="display:inline-block; cursor:pointer;">
+                        📁 Upload Map
+                    </label>
+                    <input type="file" id="customMapUpload" accept="image/*">
+                </div>
+                <div>
+                    <button class="btn btn-secondary" id="exportMapBtn" title="Export Map Backup">📤 Export</button>
+                    <label for="importMapInput" class="btn btn-secondary" style="display:inline-block; cursor:pointer;" title="Import Map Backup">📥 Import</label>
+                    <input type="file" id="importMapInput" accept=".json">
+                </div>
+                <div class="size-control-group">
+                    <label for="markerSizeRange">Pin:</label>
+                    <button class="size-step-btn" id="decreaseSizeBtn">-</button>
+                    <input type="range" id="markerSizeRange" min="10" max="80" value="26">
+                    <button class="size-step-btn" id="increaseSizeBtn">+</button>
+                </div>
+                <button class="btn btn-secondary" id="resetViewBtn">Reset View</button>
+                <button class="btn btn-danger" id="formatCurrentMapBtn">🗑️ Format Map</button>
+            </div>
+
+            <div class="info-banner">
+                <div>
+                    <div class="info-title">Selected Location:</div>
+                    <div class="info-value" id="selectedTownDisplay">None Selected</div>
+                </div>
+                <div id="selectedCoordDisplay" style="font-size:0.8rem; color:var(--text-muted);">ID: --</div>
+            </div>
+
+            <div class="map-viewport" id="mapViewport">
+                <div class="zoom-controls">
+                    <button class="zoom-btn" id="zoomInBtn">+</button>
+                    <button class="zoom-btn" id="zoomOutBtn">-</button>
+                </div>
+                <div class="map-canvas-container" id="canvasContainer">
+                    <img id="mapImage" class="map-image" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1000' height='750' viewBox='0 0 1000 750'><rect width='1000' height='750' fill='%231e293b'/><path d='M150,150 Q500,50 850,200 Q900,450 750,650 Q400,700 150,550 Z' fill='%230f172a' stroke='%23334155' stroke-width='6'/><text x='500' y='380' fill='%2394a3b8' font-size='24' font-family='sans-serif' text-anchor='middle'>Upload a map image to begin</text></svg>" alt="Active Map">
+                    <div id="markersLayer"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar Town List -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <span>Towns Index</span>
+                <span id="duplicateAlertBadge" style="font-size: 0.75rem; color: var(--warning); display: none;">⚠️ Duplicate Found</span>
+            </div>
+            <div class="search-sort-container">
+                <input type="text" id="searchInput" class="search-input" placeholder="🔍 Search name...">
+                <select id="sortSelect" class="sort-select" title="Sorting Options">
+                    <option value="name-asc">Name (A to Z)</option>
+                    <option value="name-desc">Name (Z to A)</option>
+                </select>
+            </div>
+            <div class="town-list" id="townList"></div>
+        </div>
+    </div>
+
+    <!-- Edit/Add Modal -->
+    <div class="modal" id="townModal">
+        <div class="modal-content" id="modalBoxContent">
+            <h3 id="modalTitle">Add Location</h3>
+            <div class="form-group">
+                <label>Number ID:</label>
+                <input type="number" id="modalIdInput">
+                <div class="warning-text" id="idWarning">⚠️ Warning: This Number ID already exists!</div>
+            </div>
+            <div class="form-group">
+                <label>Town / Location Name:</label>
+                <input type="text" id="modalNameInput">
+                <div class="warning-text" id="nameWarning">⚠️ Note: This name already exists in the list.</div>
+            </div>
+            <input type="hidden" id="modalOriginalId">
+            <input type="hidden" id="modalXInput">
+            <input type="hidden" id="modalYInput">
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" id="modalCancelBtn">Cancel</button>
+                <button class="btn" id="modalSaveBtn">Save Location</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const CURRENT_APP_VERSION = 1; 
+        const VERSION_CHECK_URL = "https://yourwebsite.com/version.json"; 
+
+        const defaultTowns = [
+            { id: 1, name: "Awra", x: 30, y: 35 },
+            { id: 2, name: "Dansha town", x: 22, y: 65 },
+            { id: 14, name: "Endabaguna town", x: 42, y: 40 },
+            { id: 17, name: "May Tsebri town", x: 38, y: 55 },
+            { id: 21, name: "Ofla", x: 55, y: 25 },
+            { id: 25, name: "Abergele", x: 50, y: 50 },
+            { id: 26, name: "Abi Adi town", x: 62, y: 45 },
+            { id: 30, name: "Adwa town", x: 48, y: 28 },
+            { id: 33, name: "Axum town", x: 42, y: 22 },
+            { id: 36, name: "Edlaga town", x: 68, y: 30 },
+            { id: 46, name: "Tahtay Maychew", x: 75, y: 35 },
+            { id: 66, name: "Mekelle", x: 80, y: 48 },
+            { id: 75, name: "Bona town", x: 85, y: 72 },
+            { id: 82, name: "Mekhoni town", x: 82, y: 62 },
+            { id: 85, name: "Raya Alamata", x: 88, y: 80 }
+        ];
+
+        let currentMapKey = localStorage.getItem('active_map_key') || 'default_tigray_map';
+        let currentMapImage = localStorage.getItem(currentMapKey + '_image') || document.getElementById('mapImage').src;
+        let towns = JSON.parse(localStorage.getItem(currentMapKey + '_towns')) || defaultTowns;
+        let markerSize = parseInt(localStorage.getItem(currentMapKey + '_size')) || 26;
+
+        let activeId = null;
+        let searchQuery = "";
+        let currentSort = "name-asc";
+
+        let scale = 1;
+        let pointX = 0;
+        let pointY = 0;
+        let panning = false;
+        let startX = 0;
+        let startY = 0;
+
+        const viewport = document.getElementById('mapViewport');
+        const container = document.getElementById('canvasContainer');
+        const markersLayer = document.getElementById('markersLayer');
+        const townListEl = document.getElementById('townList');
+        const selectedTownDisplay = document.getElementById('selectedTownDisplay');
+        const selectedCoordDisplay = document.getElementById('selectedCoordDisplay');
+        const mapImage = document.getElementById('mapImage');
+        const duplicateAlertBadge = document.getElementById('duplicateAlertBadge');
+        const searchInput = document.getElementById('searchInput');
+        const sortSelect = document.getElementById('sortSelect');
+        const markerSizeRange = document.getElementById('markerSizeRange');
+        const decreaseSizeBtn = document.getElementById('decreaseSizeBtn');
+        const increaseSizeBtn = document.getElementById('increaseSizeBtn');
+        const formatCurrentMapBtn = document.getElementById('formatCurrentMapBtn');
+        const exportMapBtn = document.getElementById('exportMapBtn');
+        const importMapInput = document.getElementById('importMapInput');
+        const updateBanner = document.getElementById('updateBanner');
+        const downloadUpdateBtn = document.getElementById('downloadUpdateBtn');
+
+        const modal = document.getElementById('townModal');
+        const modalBoxContent = document.getElementById('modalBoxContent');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalIdInput = document.getElementById('modalIdInput');
+        const modalNameInput = document.getElementById('modalNameInput');
+        const modalOriginalId = document.getElementById('modalOriginalId');
+        const modalXInput = document.getElementById('modalXInput');
+        const modalYInput = document.getElementById('modalYInput');
+        const idWarning = document.getElementById('idWarning');
+        const nameWarning = document.getElementById('nameWarning');
+
+        function getMasterPassword() {
+            return localStorage.getItem('master_admin_password') || '1234';
+        }
+
+        function verifyPassword(actionName) {
+            let currentPassword = getMasterPassword();
+            let input = prompt(`Enter password to ${actionName} (or type 'RESET' to change password):`);
+            if (input === null) return false;
+
+            if (input.toUpperCase() === 'RESET') {
+                let oldPassInput = prompt("To reset your password, please enter your FORMER/CURRENT password first:");
+                if (oldPassInput === currentPassword) {
+                    let newPass = prompt("Former password verified! Enter your NEW password:");
+                    if (newPass && newPass.trim() !== "") {
+                        localStorage.setItem('master_admin_password', newPass.trim());
+                        alert("Password successfully updated! Please try your action again using your new password.");
+                    } else {
+                        alert("Invalid new password. Reset cancelled.");
+                    }
+                } else {
+                    alert("Incorrect former password! Password change cancelled.");
+                }
+                return false;
+            }
+
+            if (input === currentPassword) {
+                return true;
+            } else {
+                alert("Incorrect password! Action cancelled.");
+                return false;
+            }
+        }
+
+        function checkForUpdates() {
+            if (!navigator.onLine) return;
+            
+            fetch(VERSION_CHECK_URL)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.version > CURRENT_APP_VERSION) {
+                        downloadUpdateBtn.href = data.downloadUrl;
+                        updateBanner.style.display = 'flex';
+                    }
+                })
+                .catch(err => {});
+        }
+
+        function initMap() {
+            mapImage.src = currentMapImage;
+            markerSizeRange.value = markerSize;
+            renderMarkers();
+            renderTownList();
+            setTransform();
+            setupTransform();
+            setupMapClickToAdd();
+            setupDuplicateCheckListeners();
+            setupSearchAndSortListeners();
+            setupSizeListener();
+            setupModalOutsideClick();
+            setupFormatCurrentMapListener();
+            setupExportImportListeners();
+            checkForUpdates();
+        }
+
+        function saveToStorage() {
+            localStorage.setItem(currentMapKey + '_towns', JSON.stringify(towns));
+            localStorage.setItem(currentMapKey + '_image', currentMapImage);
+            localStorage.setItem(currentMapKey + '_size', markerSize);
+            localStorage.setItem('active_map_key', currentMapKey);
+        }
+
+        function setupFormatCurrentMapListener() {
+            formatCurrentMapBtn.addEventListener('click', () => {
+                if (verifyPassword("format this current map")) {
+                    localStorage.removeItem(currentMapKey + '_towns');
+                    localStorage.removeItem(currentMapKey + '_image');
+                    localStorage.removeItem(currentMapKey + '_size');
+                    
+                    alert("Current map data has been formatted/cleared successfully.");
+                    location.reload();
+                }
+            });
+        }
+
+        function setupExportImportListeners() {
+            exportMapBtn.addEventListener('click', () => {
+                if (verifyPassword("export this map's data")) {
+                    const mapData = {
+                        key: currentMapKey,
+                        image: currentMapImage,
+                        towns: towns,
+                        size: markerSize
+                    };
+                    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(mapData));
+                    const downloadAnchor = document.createElement('a');
+                    downloadAnchor.setAttribute("href", dataStr);
+                    downloadAnchor.setAttribute("download", `${currentMapKey}_backup.json`);
+                    document.body.appendChild(downloadAnchor);
+                    downloadAnchor.click();
+                    downloadAnchor.remove();
+                }
+            });
+
+            importMapInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                if (verifyPassword("import map data")) {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        try {
+                            const importedData = JSON.parse(event.target.result);
+                            if (importedData.key && importedData.image && importedData.towns) {
+                                currentMapKey = importedData.key;
+                                currentMapImage = importedData.image;
+                                towns = importedData.towns;
+                                markerSize = importedData.size || 26;
+
+                                saveToStorage();
+                                alert("Map data imported successfully!");
+                                location.reload();
+                            } else {
+                                alert("Invalid map backup file format!");
+                            }
+                        } catch (err) {
+                            alert("Failed to parse JSON file.");
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+                importMapInput.value = '';
+            });
+        }
+
+        function getDuplicateIds() {
+            const idCounts = {};
+            towns.forEach(t => idCounts[t.id] = (idCounts[t.id] || 0) + 1);
+            return new Set(Object.keys(idCounts).filter(id => idCounts[id] > 1).map(Number));
+        }
+
+        function getDuplicateNames() {
+            const nameCounts = {};
+            towns.forEach(t => {
+                const cleanName = t.name.trim().toLowerCase();
+                nameCounts[cleanName] = (nameCounts[cleanName] || 0) + 1;
+            });
+            return new Set(Object.keys(nameCounts).filter(name => nameCounts[name] > 1));
+        }
+
+        function renderMarkers() {
+            markersLayer.innerHTML = '';
+            const dupIds = getDuplicateIds();
+
+            towns.forEach(t => {
+                const pin = document.createElement('div');
+                const isDup = dupIds.has(t.id);
+                pin.className = `map-pin ${t.id === activeId ? 'active' : ''} ${isDup ? 'duplicate-flag' : ''}`;
+                pin.style.left = `${t.x}%`;
+                pin.style.top = `${t.y}%`;
+                pin.style.width = `${markerSize}px`;
+                pin.style.height = `${markerSize}px`;
+                pin.style.fontSize = `${markerSize * 0.35}px`;
+                pin.style.borderRadius = '50%';
+                pin.innerText = t.id;
+                pin.title = `${t.id}) ${t.name}`;
+                pin.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    selectTown(t.id);
+                });
+                markersLayer.appendChild(pin);
+            });
+        }
+
+        function renderTownList() {
+            townListEl.innerHTML = '';
+            const dupNames = getDuplicateNames();
+            let hasAnyDuplicate = dupNames.size > 0;
+
+            if (hasAnyDuplicate) {
+                duplicateAlertBadge.style.display = 'inline-block';
+            } else {
+                duplicateAlertBadge.style.display = 'none';
+            }
+
+            let result = towns.filter(t => {
+                const query = searchQuery.toLowerCase().trim();
+                if (!query) return true;
+                return t.name.toLowerCase().includes(query);
+            });
+
+            result.sort((a, b) => {
+                if (currentSort === 'name-asc') return a.name.localeCompare(b.name, undefined, { sensitivity: 'accent' });
+                if (currentSort === 'name-desc') return b.name.localeCompare(a.name, undefined, { sensitivity: 'accent' });
+                return 0;
+            });
+
+            result.forEach(t => {
+                const isNameDup = dupNames.has(t.name.trim().toLowerCase());
+
+                const item = document.createElement('div');
+                item.className = `town-item ${t.id === activeId ? 'active' : ''} ${isNameDup ? 'duplicate-item' : ''}`;
+                
+                let warningTag = isNameDup ? `<span style="color:var(--warning); font-size:0.7rem; margin-left:4px;" title="Duplicate detected">⚠️</span>` : '';
+
+                item.innerHTML = `
+                    <div style="display:flex; align-items:center; gap:0.5rem; flex:1;" onclick="selectTown(${t.id})">
+                        <span>${t.name}</span> ${warningTag}
+                    </div>
+                    <div class="town-actions">
+                        <button class="action-btn" onclick="openEditModal(${t.id})" title="Edit">✏️</button>
+                        <button class="action-btn delete" onclick="deleteTownWithPassword(${t.id})" title="Delete">🗑️</button>
+                    </div>
+                `;
+                townListEl.appendChild(item);
+            });
+        }
+
+        function setupSearchAndSortListeners() {
+            searchInput.addEventListener('input', (e) => {
+                searchQuery = e.target.value;
+                renderTownList();
+            });
+
+            sortSelect.addEventListener('change', (e) => {
+                currentSort = e.target.value;
+                renderTownList();
+            });
+        }
+
+        function updateMarkerSize(newSize) {
+            markerSize = Math.min(80, Math.max(10, newSize));
+            markerSizeRange.value = markerSize;
+            renderMarkers();
+            saveToStorage();
+        }
+
+        function setupSizeListener() {
+            markerSizeRange.addEventListener('input', (e) => {
+                updateMarkerSize(parseInt(e.target.value));
+            });
+            decreaseSizeBtn.addEventListener('click', () => {
+                updateMarkerSize(markerSize - 2);
+            });
+            increaseSizeBtn.addEventListener('click', () => {
+                updateMarkerSize(markerSize + 2);
+            });
+        }
+
+        function setupDuplicateCheckListeners() {
+            modalIdInput.addEventListener('input', checkModalDuplicates);
+            modalNameInput.addEventListener('input', checkModalDuplicates);
+        }
+
+        function checkModalDuplicates() {
+            const currentId = parseInt(modalIdInput.value);
+            const currentName = modalNameInput.value.trim().toLowerCase();
+            const originalId = modalOriginalId.value === "" ? null : parseInt(modalOriginalId.value);
+
+            const idExists = towns.some(t => t.id === currentId && t.id !== originalId);
+            if (idExists) {
+                idWarning.style.display = 'block';
+            } else {
+                idWarning.style.display = 'none';
+            }
+
+            const nameExists = towns.some(t => t.name.trim().toLowerCase() === currentName && t.id !== originalId);
+            if (currentName && nameExists) {
+                nameWarning.style.display = 'block';
+            } else {
+                nameWarning.style.display = 'none';
+            }
+        }
+
+        function selectTown(id) {
+            activeId = id;
+            
+            // በካርታው ላይ ፒኑን ሲጫኑ የሰርች ፊልተሩን እና ሳጥኑን እናጸዳዋለን (Clear Search)
+            searchQuery = "";
+            searchInput.value = "";
+
+            const town = towns.find(t => t.id === id);
+            if (town) {
+                selectedTownDisplay.innerText = town.name;
+                selectedCoordDisplay.innerText = `ID: #${town.id} | Position: (${town.x.toFixed(1)}%, ${town.y.toFixed(1)}%)`;
+            }
+            renderMarkers();
+            renderTownList();
+        }
+
+        function deleteTownWithPassword(id) {
+            if (verifyPassword("delete this location")) {
+                towns = towns.filter(t => t.id !== id);
+                saveToStorage();
+                renderMarkers();
+                renderTownList();
+                if (activeId === id) {
+                    selectedTownDisplay.innerText = "None Selected";
+                    selectedCoordDisplay.innerText = "ID: --";
+                    activeId = null;
+                }
+                alert("Location deleted successfully.");
+            }
+        }
+
+        function openEditModal(id) {
+            const town = towns.find(t => t.id === id);
+            if (!town) return;
+            modalTitle.innerText = `Edit Location`;
+            modalIdInput.value = town.id;
+            modalOriginalId.value = town.id;
+            modalNameInput.value = town.name;
+            modalXInput.value = town.x;
+            modalYInput.value = town.y;
+            idWarning.style.display = 'none';
+            nameWarning.style.display = 'none';
+            modal.style.display = 'flex';
+        }
+
+        function setupMapClickToAdd() {
+            mapImage.addEventListener('click', (e) => {
+                const rect = mapImage.getBoundingClientRect();
+                const xPercent = ((e.clientX - rect.left) / rect.width) * 100;
+                const yPercent = ((e.clientY - rect.top) / rect.height) * 100;
+
+                modalTitle.innerText = "Add Location at Clicked Spot";
+                const nextId = towns.length > 0 ? Math.max(...towns.map(t => t.id)) + 1 : 1;
+                modalIdInput.value = nextId;
+                modalOriginalId.value = "";
+                modalNameInput.value = "New Town";
+                modalXInput.value = xPercent;
+                modalYInput.value = yPercent;
+                idWarning.style.display = 'none';
+                nameWarning.style.display = 'none';
+                modal.style.display = 'flex';
+            });
+        }
+
+        function setupModalOutsideClick() {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+        }
+
+        document.getElementById('modalCancelBtn').addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+
+        document.getElementById('modalSaveBtn').addEventListener('click', () => {
+            const newId = parseInt(modalIdInput.value);
+            const newName = modalNameInput.value.trim();
+            const originalId = modalOriginalId.value;
+            const x = parseFloat(modalXInput.value);
+            const y = parseFloat(modalYInput.value);
+
+            if (!newName || isNaN(newId)) {
+                alert("Please enter a valid name and number ID.");
+                return;
+            }
+
+            if (originalId === "") {
+                towns.push({ id: newId, name: newName, x: x, y: y });
+            } else {
+                const origIdNum = parseInt(originalId);
+                const town = towns.find(t => t.id === origIdNum);
+                if (town) {
+                    town.id = newId;
+                    town.name = newName;
+                    town.x = x;
+                    town.y = y;
+                }
+            }
+
+            saveToStorage();
+            modal.style.display = 'none';
+            renderMarkers();
+            renderTownList();
+            selectTown(newId);
+        });
+
+        function setTransform() {
+            container.style.transform = `translate(${pointX}px, ${pointY}px) scale(${scale})`;
+        }
+
+        function zoomAtPoint(zoomFactor, clientX, clientY) {
+            const rect = viewport.getBoundingClientRect();
+            const x = clientX - rect.left;
+            const y = clientY - rect.top;
+
+            const newScale = Math.min(Math.max(0.5, scale * zoomFactor), 8);
+            const actualFactor = newScale / scale;
+
+            pointX = x - (x - pointX) * actualFactor;
+            pointY = y - (y - pointY) * actualFactor;
+            scale = newScale;
+
+            setTransform();
+        }
+
+        function setupTransform() {
+            viewport.addEventListener('mousedown', (e) => {
+                if (e.target.id === 'mapImage' || e.target.id === 'canvasContainer') {
+                    panning = true;
+                    startX = e.clientX - pointX;
+                    startY = e.clientY - pointY;
+                }
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (!panning) return;
+                pointX = e.clientX - startX;
+                pointY = e.clientY - startY;
+                setTransform();
+            });
+
+            window.addEventListener('mouseup', () => {
+                panning = false;
+            });
+
+            viewport.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const zoomFactor = e.deltaY < 0 ? 1.15 : 0.85;
+                zoomAtPoint(zoomFactor, e.clientX, e.clientY);
+            }, {passive: false});
+
+            let initialDistance = null;
+            let touchCenterX = 0;
+            let touchCenterY = 0;
+
+            viewport.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 1) {
+                    panning = true;
+                    startX = e.touches[0].clientX - pointX;
+                    startY = e.touches[0].clientY - pointY;
+                    initialDistance = null;
+                } else if (e.touches.length === 2) {
+                    panning = false;
+                    initialDistance = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                    const rect = viewport.getBoundingClientRect();
+                    touchCenterX = ((e.touches[0].clientX + e.touches[1].clientX) / 2) - rect.left;
+                    touchCenterY = ((e.touches[0].clientY + e.touches[1].clientY) / 2) - rect.top;
+                }
+            }, {passive: true});
+
+            viewport.addEventListener('touchmove', (e) => {
+                if (panning && e.touches.length === 1) {
+                    pointX = e.touches[0].clientX - startX;
+                    pointY = e.touches[0].clientY - startY;
+                    setTransform();
+                } else if (e.touches.length === 2 && initialDistance) {
+                    const currentDistance = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                    const zoomFactor = currentDistance / initialDistance;
+                    
+                    const rect = viewport.getBoundingClientRect();
+                    const cx = rect.left + touchCenterX;
+                    const cy = rect.top + touchCenterY;
+
+                    zoomAtPoint(zoomFactor, cx, cy);
+                    initialDistance = currentDistance;
+                }
+            }, {passive: true});
+
+            viewport.addEventListener('touchend', (e) => {
+                if (e.touches.length < 2) {
+                    initialDistance = null;
+                }
+                if (e.touches.length === 0) {
+                    panning = false;
+                }
+            }, {passive: true});
+        }
+
+        document.getElementById('zoomInBtn').addEventListener('click', () => {
+            const rect = viewport.getBoundingClientRect();
+            zoomAtPoint(1.25, rect.left + rect.width / 2, rect.top + rect.height / 2);
+        });
+
+        document.getElementById('zoomOutBtn').addEventListener('click', () => {
+            const rect = viewport.getBoundingClientRect();
+            zoomAtPoint(0.8, rect.left + rect.width / 2, rect.top + rect.height / 2);
+        });
+
+        document.getElementById('resetViewBtn').addEventListener('click', () => {
+            scale = 1;
+            pointX = 0;
+            pointY = 0;
+            setTransform();
+        });
+
+        document.getElementById('customMapUpload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    currentMapImage = event.target.result;
+                    currentMapKey = 'map_' + file.name.replace(/[^a-zA-Z0-9]/g, '_') + '_' + file.size;
+                    
+                    if (localStorage.getItem(currentMapKey + '_towns')) {
+                        towns = JSON.parse(localStorage.getItem(currentMapKey + '_towns'));
+                    } else {
+                        towns = [
+                            { id: 1, name: "New Location 1", x: 50, y: 50 }
+                        ];
+                    }
+
+                    markerSize = parseInt(localStorage.getItem(currentMapKey + '_size')) || 26;
+                    markerSizeRange.value = markerSize;
+
+                    saveToStorage();
+                    mapImage.src = currentMapImage;
+                    scale = 1;
+                    pointX = 0;
+                    pointY = 0;
+                    activeId = null;
+                    selectedTownDisplay.innerText = "None Selected";
+                    selectedCoordDisplay.innerText = "ID: --";
+                    setTransform();
+                    renderMarkers();
+                    renderTownList();
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        initMap();
+    </script>
+</body>
+</html>
